@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Website Scraper - Extract Structured Data</title>
+    <meta name="description" content="Scrape any website and extract structured JSON data with our powerful web scraper.">
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>Universal Website Scraper</h1>
+            <p>Extract structured data from any website with intelligent scraping and JavaScript rendering</p>
+        </header>
+
+        <!-- Input Section -->
+        <div class="input-section">
+            <form id="scrapeForm">
+                <div class="input-group">
+                    <div class="input-wrapper">
+                        <label for="urlInput">Website URL</label>
+                        <input 
+                            type="url" 
+                            id="urlInput" 
+                            name="url" 
+                            placeholder="https://example.com"
+                            required
+                        >
+                    </div>
+                    <button type="submit" id="scrapeBtn">Scrape Website</button>
+                </div>
+                <div class="error" id="errorMessage"></div>
+            </form>
+        </div>
+
+        <!-- Loading State -->
+        <div class="loading" id="loadingState">
+            <div class="spinner"></div>
+            <p class="loading-text">Scraping website... This may take a moment</p>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results" id="resultsSection">
+            <!-- Results Header -->
+            <div class="results-header">
+                <h2>Scraping Results</h2>
+                <button class="download-btn" id="downloadBtn">Download JSON</button>
+            </div>
+
+            <!-- Meta Information -->
+            <div class="meta-info">
+                <h3>Page Information</h3>
+                <div class="meta-grid">
+                    <div class="meta-item">
+                        <div class="meta-label">Title</div>
+                        <div class="meta-value" id="metaTitle">-</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Description</div>
+                        <div class="meta-value" id="metaDescription">-</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Language</div>
+                        <div class="meta-value" id="metaLanguage">-</div>
+                    </div>
+                    <div class="meta-item">
+                        <div class="meta-label">Canonical URL</div>
+                        <div class="meta-value" id="metaCanonical">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interaction Summary -->
+            <div class="interaction-summary" id="interactionSummary">
+                <h3>Interaction Summary</h3>
+                <div class="interaction-stats">
+                    <div class="stat">
+                        <div class="stat-value" id="clicksCount">0</div>
+                        <div class="stat-label">Clicks</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="scrollsCount">0</div>
+                        <div class="stat-label">Scrolls</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="pagesCount">1</div>
+                        <div class="stat-label">Pages</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-value" id="sectionsCount">0</div>
+                        <div class="stat-label">Sections</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sections -->
+            <div class="sections" id="sectionsContainer"></div>
+
+            <!-- Full JSON Viewer -->
+            <div class="meta-info">
+                <h3>Full JSON Response</h3>
+                <div class="json-viewer" id="jsonViewer">
+                    <pre id="jsonContent"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scrapedData = null;
+
+        // Form submission
+        document.getElementById('scrapeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const url = document.getElementById('urlInput').value;
+            const errorDiv = document.getElementById('errorMessage');
+            const loadingDiv = document.getElementById('loadingState');
+            const resultsDiv = document.getElementById('resultsSection');
+            const scrapeBtn = document.getElementById('scrapeBtn');
+            
+            // Reset state
+            errorDiv.classList.remove('active');
+            resultsDiv.classList.remove('active');
+            loadingDiv.classList.add('active');
+            scrapeBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/scrape', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url })
+                });
+                
+                const data = await response.json();
+                scrapedData = data.result;
+                
+                if (scrapedData.errors && scrapedData.errors.length > 0) {
+                    errorDiv.textContent = 'Errors occurred: ' + scrapedData.errors.join(', ');
+                    errorDiv.classList.add('active');
+                }
+                
+                displayResults(scrapedData);
+                resultsDiv.classList.add('active');
+                
+            } catch (error) {
+                errorDiv.textContent = 'Failed to scrape website: ' + error.message;
+                errorDiv.classList.add('active');
+            } finally {
+                loadingDiv.classList.remove('active');
+                scrapeBtn.disabled = false;
+            }
+        });
+
+        // Display results
+        function displayResults(data) {
+            // Meta information
+            document.getElementById('metaTitle').textContent = data.meta.title || '-';
+            document.getElementById('metaDescription').textContent = data.meta.description || '-';
+            document.getElementById('metaLanguage').textContent = data.meta.language || '-';
+            document.getElementById('metaCanonical').textContent = data.meta.canonical || '-';
+            
+            // Interaction stats
+            const interactions = data.interactions || {};
+            document.getElementById('clicksCount').textContent = (interactions.clicks || []).length;
+            document.getElementById('scrollsCount').textContent = interactions.scrolls || 0;
+            document.getElementById('pagesCount').textContent = (interactions.pages || []).length + 1;
+            document.getElementById('sectionsCount').textContent = (data.sections || []).length;
+            
+            // Sections
+            const sectionsContainer = document.getElementById('sectionsContainer');
+            sectionsContainer.innerHTML = '';
+            
+            (data.sections || []).forEach((section, index) => {
+                const sectionCard = createSectionCard(section, index);
+                sectionsContainer.appendChild(sectionCard);
+            });
+            
+            // Full JSON
+            document.getElementById('jsonContent').textContent = JSON.stringify(data, null, 2);
+        }
+
+        // Create section card
+        function createSectionCard(section, index) {
+            const card = document.createElement('div');
+            card.className = 'section-card';
+            
+            const header = document.createElement('div');
+            header.className = 'section-header';
+            header.innerHTML = `
+                <div>
+                    <span class="section-title">${escapeHtml(section.heading || 'Section ' + (index + 1))}</span>
+                    <span class="section-type">${escapeHtml(section.type || 'content')}</span>
+                </div>
+                <span class="section-toggle">▼</span>
+            `;
+            
+            header.addEventListener('click', () => {
+                card.classList.toggle('expanded');
+            });
+            
+            const content = document.createElement('div');
+            content.className = 'section-content';
+            
+            // Text content
+            if (section.text) {
+                const textGroup = document.createElement('div');
+                textGroup.className = 'content-group';
+                textGroup.innerHTML = `
+                    <div class="content-label">Text Content</div>
+                    <div class="content-text">${escapeHtml(section.text)}</div>
+                `;
+                content.appendChild(textGroup);
+            }
+            
+            // Links
+            if (section.links && section.links.length > 0) {
+                const linksGroup = document.createElement('div');
+                linksGroup.className = 'content-group';
+                linksGroup.innerHTML = `<div class="content-label">Links (${section.links.length})</div>`;
+                
+                const linksList = document.createElement('ul');
+                linksList.className = 'content-list';
+                section.links.slice(0, 10).forEach(link => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<a href="${escapeHtml(link.url)}" class="link-item" target="_blank">${escapeHtml(link.text)}</a>`;
+                    linksList.appendChild(li);
+                });
+                linksGroup.appendChild(linksList);
+                content.appendChild(linksGroup);
+            }
+            
+            // Images
+            if (section.images && section.images.length > 0) {
+                const imagesGroup = document.createElement('div');
+                imagesGroup.className = 'content-group';
+                imagesGroup.innerHTML = `
+                    <div class="content-label">Images (${section.images.length})</div>
+                    <div class="content-text">
+                        ${section.images.slice(0, 5).map(img => 
+                            `• ${escapeHtml(img.alt || 'Image')} - ${escapeHtml(img.src)}`
+                        ).join('<br>')}
+                    </div>
+                `;
+                content.appendChild(imagesGroup);
+            }
+            
+            // Lists
+            if (section.lists && section.lists.length > 0) {
+                const listsGroup = document.createElement('div');
+                listsGroup.className = 'content-group';
+                listsGroup.innerHTML = `<div class="content-label">Lists (${section.lists.length})</div>`;
+                
+                section.lists.forEach((list, idx) => {
+                    const listEl = document.createElement('ul');
+                    listEl.className = 'content-list';
+                    list.slice(0, 5).forEach(item => {
+                        const li = document.createElement('li');
+                        li.textContent = item;
+                        listEl.appendChild(li);
+                    });
+                    listsGroup.appendChild(listEl);
+                });
+                content.appendChild(listsGroup);
+            }
+            
+            card.appendChild(header);
+            card.appendChild(content);
+            
+            return card;
+        }
+
+        // Download JSON
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            if (!scrapedData) return;
+            
+            const dataStr = JSON.stringify(scrapedData, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `scrape-${Date.now()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
