@@ -70,7 +70,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 ## Usage
 
-1. Open your browser to http://localhost:8000
+1. Open the link of the website on theright.
 2. Enter a website URL (must start with http:// or https://)
 3. Click "Scrape Website"
 4. Wait for the scraping to complete
